@@ -1,18 +1,18 @@
 cask "magpie-app" do
-  version "0.1.59"
-  sha256 arm:   "25781a54a7a82b6e20729608b399d922a0fb3ccefcca0655440b0e1586d7a7c4",
-         intel: "352bf586e06fce9f1acd3f91ed735414ce45beca259b2457f1a799270dbb1ba9"
-
   arch arm: "arm64", intel: "amd64"
 
-  url "https://github.com/yetone/magpie-releases/releases/download/v0.1.59/magpie-darwin-#{arch}.zip"
+  version "0.1.84"
+  sha256 arm:   "6d33c4f961da7973c42add9b5516492567bdad8300c0aa27f3ad7bb12412c32c",
+         intel: "599251e394f8539f92a02126e87d38337973711340a98d3684f58d8591881bd4"
+
+  url "https://github.com/yetone/magpie-releases/releases/download/v#{version}/magpie-darwin-#{arch}.zip"
   name "magpie"
   desc "Pick the model each AI coding agent on your machine uses"
-  homepage "https://usemagpie.ai"
+  homepage "https://usemagpie.ai/"
+
+  depends_on :macos
 
   app "magpie.app"
 
-  zap trash: [
-    "~/.config/magpie",
-  ]
+  zap trash: "~/.config/magpie"
 end
