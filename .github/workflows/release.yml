@@ -392,26 +392,6 @@ jobs:
           body_path: ${{ runner.temp }}/changelog.md
           files: dist/*
 
-      - name: Checkout magpie-releases
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          ref: main
-          path: tap
-
-      - name: Update Homebrew tap
-        run: |
-          cd tap
-          ./scripts/update-tap.sh "$VERSION"
-          if git diff --quiet; then
-            echo "Tap is already at v$VERSION."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Formula Casks
-          git commit -m "chore: update homebrew tap for v$VERSION"
-          git push
-
       - name: Probe Discord webhook
         id: discord
         env:
@@ -440,3 +420,29 @@ jobs:
           fi
           jq -n --arg content "$MESSAGE" '{content: $content}' | \
             curl -sf -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"
+
+      - name: Checkout magpie-releases
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: main
+          path: tap
+
+      # Runs last, so a tap failure cannot swallow the announcement of a release
+      # that is already public. Only tag refs reach the tap: a manual dispatch
+      # from a branch builds and publishes, but must not move stable installs.
+      - name: Update Homebrew tap
+        if: startsWith(env.REF, 'v') || startsWith(env.REF, 'refs/tags/v')
+        env:
+          TAP_RELEASE_REPO: ${{ github.repository }}
+        run: |
+          cd tap
+          ./scripts/update-tap.sh "$VERSION"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Tap is already at v$VERSION."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: update homebrew tap for v$VERSION"
+          git push
