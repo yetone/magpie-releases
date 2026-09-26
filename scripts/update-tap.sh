@@ -107,6 +107,7 @@ cask "magpie-app" do
   desc "$DESC"
   homepage "$HOMEPAGE"
 
+  auto_updates true
   depends_on :macos
 
   app "magpie.app"

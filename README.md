@@ -20,6 +20,8 @@ brew tap yetone/magpie-releases https://github.com/yetone/magpie-releases
 brew trust --tap yetone/magpie-releases
 ```
 
+(`brew trust` is Homebrew 7's; skip it on an older Homebrew.)
+
 Terminal-only binary, as `magpie` on macOS and Linux:
 
 ```sh
@@ -32,4 +34,4 @@ The macOS app, signed and notarised, into `/Applications`:
 brew install --cask magpie-app
 ```
 
-Both are updated on every release, so `brew upgrade` picks up new versions.
+Both are updated on every release, so `brew upgrade` picks up new versions. The app also updates itself, as it does however it was installed; `magpie update` in a Homebrew install says to use `brew upgrade magpie` instead.
