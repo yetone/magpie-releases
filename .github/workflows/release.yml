@@ -56,7 +56,7 @@ jobs:
 
     steps:
       - name: Checkout magpie source code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: yetone/magpie
           ssh-key: ${{ secrets.MAGPIE_DEPLOY_KEY }}
@@ -189,7 +189,7 @@ jobs:
 
     steps:
       - name: Checkout magpie source code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: yetone/magpie
           ssh-key: ${{ secrets.MAGPIE_DEPLOY_KEY }}
@@ -269,7 +269,7 @@ jobs:
 
     steps:
       - name: Checkout magpie source code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: yetone/magpie
           ssh-key: ${{ secrets.MAGPIE_DEPLOY_KEY }}
@@ -319,7 +319,7 @@ jobs:
 
     steps:
       - name: Checkout magpie source code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: yetone/magpie
           ssh-key: ${{ secrets.MAGPIE_DEPLOY_KEY }}
@@ -422,7 +422,7 @@ jobs:
             curl -sf -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"
 
       - name: Checkout magpie-releases
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           path: tap
