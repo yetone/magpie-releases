@@ -467,12 +467,31 @@ jobs:
           fi
           cat $RUNNER_TEMP/changelog.md
 
+      # GitHub marks the release published last as Latest, and usemagpie.ai's
+      # /api/latest (the update feed and the downloads) serves Latest. A
+      # release whose notarisation ran long went out after newer ones and
+      # took the mark from them (v0.1.1255 on 10-15; v0.1.1891 over 1892 on
+      # 10-28), so this one is Latest only when no published one is newer.
+      - name: Latest only when newest
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          top=$(gh release list -R "$GITHUB_REPOSITORY" -L 100 --exclude-drafts --json tagName -q '.[].tagName' | sed 's/^v//' | sort -V | tail -1)
+          if [ -z "$top" ] || [ "$(printf '%s\n%s\n' "$top" "$VERSION" | sort -V | tail -1)" = "$VERSION" ]; then
+            echo "make=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "v$top is newer: v$VERSION is published without the Latest mark"
+            echo "make=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create Release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           tag_name: v${{ env.VERSION }}
           name: magpie v${{ env.VERSION }}
           draft: false
+          make_latest: ${{ steps.latest.outputs.make }}
           body_path: ${{ runner.temp }}/changelog.md
           files: dist/*
 
@@ -514,8 +533,10 @@ jobs:
       # Runs last, so a tap failure cannot swallow the announcement of a release
       # that is already public. Only tag refs reach the tap: a manual dispatch
       # from a branch builds and publishes, but must not move stable installs.
+      # Nor does a release published after a newer one (steps.latest): the
+      # tap went back from v0.1.1892 to 1891 on 10-28.
       - name: Update Homebrew tap
-        if: startsWith(env.REF, 'v') || startsWith(env.REF, 'refs/tags/v')
+        if: (startsWith(env.REF, 'v') || startsWith(env.REF, 'refs/tags/v')) && steps.latest.outputs.make == 'true'
         env:
           TAP_RELEASE_REPO: ${{ github.repository }}
         run: |
