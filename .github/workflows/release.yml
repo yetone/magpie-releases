@@ -129,8 +129,13 @@ jobs:
           # The Intel runners' hdiutil fails now and then with "create
           # failed - Resource busy" while something still holds the image
           # it makes; the release was lost each time (yetone/magpie#1846).
+          # The image's size is given, not left to hdiutil's guess from the
+          # folder: on the Intel runners the guess came out short and every
+          # try failed "No space left on device" copying magpie.app in
+          # (v0.1.1911, 1913, 1915, 1918 and 1921 lost on 10-28).
+          SIZE=$(( $(du -sm $RUNNER_TEMP/dmg | cut -f1) * 5 / 4 + 32 ))m
           for try in 1 2 3 4 5; do
-            hdiutil create -volname magpie -srcfolder $RUNNER_TEMP/dmg -ov -format UDZO "$DMG" && break
+            hdiutil create -volname magpie -srcfolder $RUNNER_TEMP/dmg -size $SIZE -ov -format UDZO "$DMG" && break
             [ "$try" = 5 ] && exit 1
             echo "hdiutil create failed (try $try), trying again"
             rm -f "$DMG"
