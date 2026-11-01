@@ -368,6 +368,13 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      # here, not beside the tap's update: scripts/notes.sh writes the notes
+      - name: Checkout magpie-releases
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: main
+          path: tap
+
       - name: Download all artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -380,117 +387,15 @@ jobs:
           sha256sum * > SHA256SUMS
           ls -la
 
+      # The notes are written by scripts/notes.sh (DeepSeek's changelog,
+      # then its Chinese); notes.yml writes again, each hour, those of a
+      # release DeepSeek turned away (a spent balance: v0.1.2634 to 2646)
       - name: Generate changelog
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           # read-only lookups of who opened the issues the commits name
           GH_TOKEN: ${{ github.token }}
-        run: |
-          CURRENT_TAG="v$VERSION"
-          PREV_TAG=$(git tag --sort=-v:refname | grep -A1 "^${CURRENT_TAG}$" | tail -1)
-          if [ -z "$PREV_TAG" ] || [ "$PREV_TAG" = "$CURRENT_TAG" ]; then
-            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
-          fi
-          echo "Commits since $PREV_TAG"
-          COMMITS=$(git log "$PREV_TAG..HEAD" --pretty=format:"%s" --no-merges)
-          echo "$COMMITS"
-
-          CHANGELOG=""
-          if [ -n "$DEEPSEEK_API_KEY" ] && [ -n "$COMMITS" ]; then
-            PROMPT="Based on the following git commit messages, generate a concise and user-friendly changelog in markdown format. Group changes by category (e.g., Features, Bug Fixes, Improvements). Only include meaningful changes, skip trivial commits. Use clear, non-technical language where possible. Output ONLY the changelog content without any preamble.
-
-          Commit messages:
-          $COMMITS"
-            RESPONSE=$(curl -s --max-time 300 https://api.deepseek.com/chat/completions \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
-              -d "$(jq -n --arg prompt "$PROMPT" '{"model": "deepseek-v4-pro", "messages": [{"role": "user", "content": $prompt}]}')")
-            CHANGELOG=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
-            # a refusal (a spent balance, a retired model) is said, not
-            # silently turned into the commit list (10-13 to 10-14: no
-            # notes and no Chinese for four releases, yetone/magpie#2122)
-            [ -n "$CHANGELOG" ] || echo "::warning::DeepSeek wrote no changelog: $(echo "$RESPONSE" | jq -c '.error // .' 2>/dev/null | head -c 500)"
-          fi
-          if [ -z "$CHANGELOG" ]; then
-            CHANGELOG=$(printf '### Changes\n\n'; echo "${COMMITS:-Various improvements and bug fixes}" | sed 's/^/- /')
-          fi
-
-          # An urgent release goes to the Stable update channel at once
-          # (usemagpie.ai's /api/latest?channel=stable, yetone/magpie
-          # site/worker.js): a commit since the version before with an
-          # `Urgent: <why>` trailer puts the line the feed looks for at the
-          # top of the notes, untranslated, in every language's part.
-          URGENT=$(git log "$PREV_TAG..HEAD" --no-merges --format='%(trailers:key=Urgent,valueonly,separator=%x0A)' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | { grep -v '^$' || true; } | awk '!seen[$0]++' | paste -sd ';' - | sed 's/;/; /g')
-          # The people this release's commits credit, named last in each
-          # language's part: reporters in a subject's brackets, the authors
-          # of the issues it names, and commit authors other than the owner
-          # (yetone/magpie site/credits-cli.mjs). Never guessed: a ref
-          # from before the script, or a failure, leaves the line out.
-          THANKS_EN=""; THANKS_ZH=""
-          if [ -f site/credits-cli.mjs ]; then
-            if THANKS=$(node site/credits-cli.mjs thanks "$PREV_TAG..HEAD"); then
-              THANKS_EN=$(printf '%s\n' "$THANKS" | sed -n 1p)
-              THANKS_ZH=$(printf '%s\n' "$THANKS" | sed -n 2p)
-              echo "Thanks: ${THANKS_EN:-nobody credited}"
-            else
-              echo "::warning::credits-cli.mjs failed; the notes go out without thanks"
-            fi
-          fi
-
-          URGENT_LINE=""
-          if [ -n "$URGENT" ]; then
-            URGENT_LINE="**Urgent release:** $URGENT"
-            echo "Urgent: $URGENT"
-          fi
-
-          {
-            if [ -n "$URGENT_LINE" ]; then echo "$URGENT_LINE"; echo; fi
-            echo "$CHANGELOG"
-            echo
-            echo "### Install"
-            echo
-            echo "Download from [usemagpie.ai](https://usemagpie.ai), or \`curl -fsSL https://usemagpie.ai/install.sh | sh\`. An installed magpie updates itself."
-            echo
-            echo "- **macOS (Apple Silicon):** \`magpie-darwin-arm64.dmg\`"
-            echo "- **macOS (Intel):** \`magpie-darwin-amd64.dmg\`"
-            echo "- **Windows:** \`magpie-windows-amd64.exe\` (ARM: \`magpie-windows-arm64.exe\`)"
-            echo "- **Linux:** \`magpie-linux-amd64\` / \`magpie-linux-arm64\` (needs GTK 3 and WebKitGTK 4.1)"
-            echo "- **Terminal only:** \`magpie-cli-<os>-<arch>\`"
-            if [ -n "$THANKS_EN" ]; then echo; echo "$THANKS_EN"; fi
-          } > $RUNNER_TEMP/changelog.md
-          # The English alone goes to Discord; the app asks usemagpie.ai for
-          # the notes in its language, served from below the marker.
-          cp $RUNNER_TEMP/changelog.md $RUNNER_TEMP/changelog-en.md
-
-          ZH=""
-          if [ -n "$DEEPSEEK_API_KEY" ]; then
-            ZPROMPT="Translate the following release notes into Simplified Chinese. Keep the markdown structure, headings, links, code spans and product names (magpie, Claude Code, Codex, ...) as they are. Output ONLY the translation without any preamble.
-
-          $CHANGELOG"
-            ZRESPONSE=$(curl -s --max-time 300 https://api.deepseek.com/chat/completions \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
-              -d "$(jq -n --arg prompt "$ZPROMPT" '{"model": "deepseek-v4-pro", "messages": [{"role": "user", "content": $prompt}]}')") || true
-            ZH=$(echo "$ZRESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null) || ZH=""
-            [ -n "$ZH" ] || echo "::warning::DeepSeek wrote no Chinese notes: $(echo "$ZRESPONSE" | jq -c '.error // .' 2>/dev/null | head -c 500)"
-          fi
-          if [ -n "$ZH" ]; then
-            {
-              echo
-              echo "<!-- lang:zh -->"
-              echo
-              if [ -n "$URGENT_LINE" ]; then echo "$URGENT_LINE"; echo; fi
-              echo "$ZH"
-              echo
-              echo "### 安装"
-              echo
-              echo "从 [usemagpie.ai](https://usemagpie.ai) 下载，或运行 \`curl -fsSL https://usemagpie.ai/install.sh | sh\`。已安装的 magpie 会自动更新。"
-              if [ -n "$THANKS_ZH" ]; then echo; echo "$THANKS_ZH"; fi
-            } >> $RUNNER_TEMP/changelog.md
-          else
-            echo "No Chinese notes — the English alone is published."
-          fi
-          cat $RUNNER_TEMP/changelog.md
+        run: tap/scripts/notes.sh "v$VERSION" HEAD "$RUNNER_TEMP"
 
       # GitHub marks the release published last as Latest, and usemagpie.ai's
       # /api/latest (the update feed and the downloads) serves Latest. A
@@ -548,12 +453,6 @@ jobs:
           fi
           jq -n --arg content "$MESSAGE" '{content: $content}' | \
             curl -sf -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"
-
-      - name: Checkout magpie-releases
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          ref: main
-          path: tap
 
       # Runs last, so a tap failure cannot swallow the announcement of a release
       # that is already public. Only tag refs reach the tap: a manual dispatch

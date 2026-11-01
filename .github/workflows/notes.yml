@@ -1,0 +1,90 @@
+name: Notes
+
+# Writes again the notes of releases DeepSeek turned away. When its call
+# fails (a spent balance did so for v0.1.1233 to 1242, yetone/magpie#2122,
+# and for v0.1.2634 to 2646 on 11-01), a release goes out with its commit
+# subjects as English notes and no Chinese, and an app set to Chinese
+# shows the raw subjects (GrayRabbit on Discord, 11-02). Each hour this
+# looks at the hundred newest releases: one without the <!-- lang:zh -->
+# marker gets scripts/notes.sh's notes again, and is edited only when
+# DeepSeek wrote both parts. A release whose notes were written by hand
+# has the marker and is never touched. At the first refusal it stops: the
+# next hour tries again, so the notes come once the balance does.
+# yetone/magpie's notes-mirror.yml copies the new notes to its mirror.
+
+on:
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Tags to write again, space-separated (default: every recent release without Chinese notes)'
+        required: false
+        type: string
+
+concurrency:
+  group: notes
+  cancel-in-progress: false
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAGS: ${{ github.event.inputs.tags }}
+    steps:
+      - name: Releases without Chinese notes
+        id: find
+        run: |
+          set -euo pipefail
+          if [ -n "${TAGS:-}" ]; then
+            want="$TAGS"
+          else
+            want=$(gh release list -R "$GITHUB_REPOSITORY" -L 100 --exclude-drafts --exclude-pre-releases --json tagName -q '.[].tagName')
+          fi
+          todo=""
+          for t in $want; do
+            body=$(gh release view "$t" -R "$GITHUB_REPOSITORY" --json body -q .body)
+            if ! printf '%s' "$body" | grep -qF '<!-- lang:zh -->'; then todo="$todo $t"; fi
+          done
+          echo "Without Chinese notes:${todo:- none}"
+          echo "tags=${todo# }" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout magpie source code
+        if: steps.find.outputs.tags != ''
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: yetone/magpie
+          ssh-key: ${{ secrets.MAGPIE_DEPLOY_KEY }}
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Checkout magpie-releases
+        if: steps.find.outputs.tags != ''
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: main
+          path: tap
+
+      - name: Write the notes again
+        if: steps.find.outputs.tags != ''
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          FOUND: ${{ steps.find.outputs.tags }}
+        run: |
+          set -uo pipefail
+          for t in $FOUND; do
+            out="$RUNNER_TEMP/$t"
+            tap/scripts/notes.sh "$t" "$t" "$out" > "$out.log" 2>&1
+            grep '^::warning::' "$out.log" || true
+            if grep -qx none "$out/llm"; then echo "$t: no commits of its own"; continue; fi
+            if ! grep -qx en "$out/llm" || ! grep -qx zh "$out/llm"; then
+              echo "::warning::$t: DeepSeek didn't write both parts; the next hour tries again"
+              exit 0
+            fi
+            gh release edit "$t" -R "$GITHUB_REPOSITORY" --notes-file "$out/changelog.md" >/dev/null
+            echo "$t: notes written again"
+          done
