@@ -5,22 +5,22 @@ class Magpie < Formula
 
   on_macos do
     on_arm do
-      url "https://github.com/yetone/magpie-releases/releases/download/v0.1.2671/magpie-cli-darwin-arm64"
-      sha256 "05ceafa47db343b0d2594fd13df6272f24071fd1d9aa318d94f009618d93f070"
+      url "https://github.com/yetone/magpie-releases/releases/download/v0.1.2673/magpie-cli-darwin-arm64"
+      sha256 "74ff83ecb3409874538d2e3b52bca5df5f3b483c447606987eeb6f68f2287695"
     end
     on_intel do
-      url "https://github.com/yetone/magpie-releases/releases/download/v0.1.2671/magpie-cli-darwin-amd64"
-      sha256 "2bc6241129ec4c4e3ae370e6ea695a057c5b2fc0e945cc1c3e65c14982ab09ed"
+      url "https://github.com/yetone/magpie-releases/releases/download/v0.1.2673/magpie-cli-darwin-amd64"
+      sha256 "33bbd6c9b932357b32d39cf6ae0b24ea9769278e30a012601322feeadaec1b73"
     end
   end
   on_linux do
     on_arm do
-      url "https://github.com/yetone/magpie-releases/releases/download/v0.1.2671/magpie-cli-linux-arm64"
-      sha256 "9ab2a20ae3497dda72967ca8ae91792f16f2de19ba2aa37ae0608ddf9cf06b10"
+      url "https://github.com/yetone/magpie-releases/releases/download/v0.1.2673/magpie-cli-linux-arm64"
+      sha256 "ccd1c1d3e01f939dae2037d4b2ae2400dab6b69b2e6ba82285e059f7a070b1c4"
     end
     on_intel do
-      url "https://github.com/yetone/magpie-releases/releases/download/v0.1.2671/magpie-cli-linux-amd64"
-      sha256 "980ccb059325da4c962f7b12dc3840788b3aaabac163701f602538ac4ffd0935"
+      url "https://github.com/yetone/magpie-releases/releases/download/v0.1.2673/magpie-cli-linux-amd64"
+      sha256 "3386eb12a67cd284f7a2e925b1a97cfccb01d8a1fecf02098a2474389b605de7"
     end
   end
 
