@@ -1,9 +1,9 @@
 cask "magpie-app" do
   arch arm: "arm64", intel: "amd64"
 
-  version "0.1.3333"
-  sha256 arm:   "5a0ed33277577ea57175e7e6a7d1b2099fa0d06c051cdad1ba98a1ce853bfe54",
-         intel: "5657916bcf87e3335009173579e21c94bef08ce68c83e8ca0a3b1033f60277d0"
+  version "0.1.3334"
+  sha256 arm:   "229d4f7ab502ed940997b1b8cf2f6a73243892da98182160dbfc015b9d75305c",
+         intel: "4daf0a52ad06bde35f526fe2ed9a21819100d093b9a64d351d6125c6a96124f4"
 
   url "https://github.com/yetone/magpie-releases/releases/download/v#{version}/magpie-darwin-#{arch}.zip"
   name "magpie"
