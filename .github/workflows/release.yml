@@ -107,13 +107,39 @@ jobs:
           echo "Signing as: $IDENTITY"
           echo "IDENTITY=$IDENTITY" >> $GITHUB_ENV
 
+          # codesign --timestamp asks Apple's timestamp server, which now and
+          # then doesn't answer: "A timestamp was expected but was not
+          # found" failed v0.1.3360's Intel build, and its rerun published
+          # it after 3361 and 3362 (11-09). That one error is tried again;
+          # any other fails at once.
+          cat > "$RUNNER_TEMP/sign.sh" <<'EOF'
+          sign() {
+            local try out
+            for try in 1 2 3; do
+              if out=$(codesign "$@" 2>&1); then
+                [ -z "$out" ] || echo "$out"
+                return 0
+              fi
+              echo "$out" >&2
+              case "$out" in
+                *"timestamp was expected but was not found"*) ;;
+                *) return 1 ;;
+              esac
+              [ "$try" -lt 3 ] || return 1
+              echo "Apple's timestamp server didn't answer (try $try), signing again in $((try * 20))s"
+              sleep $((try * 20))
+            done
+          }
+          EOF
+
       - name: Build magpie.app
         run: make app VERSION="$VERSION"
 
       - name: Sign magpie.app
         run: |
           if [ -n "$IDENTITY" ]; then
-            codesign --force --options runtime --timestamp --sign "$IDENTITY" magpie.app
+            . "$RUNNER_TEMP/sign.sh"
+            sign --force --options runtime --timestamp --sign "$IDENTITY" magpie.app
           else
             codesign --force --sign - magpie.app
           fi
@@ -142,7 +168,8 @@ jobs:
             sleep $((try * 10))
           done
           if [ -n "$IDENTITY" ]; then
-            codesign --force --timestamp --sign "$IDENTITY" "$DMG"
+            . "$RUNNER_TEMP/sign.sh"
+            sign --force --timestamp --sign "$IDENTITY" "$DMG"
           fi
           echo "DMG=$DMG" >> $GITHUB_ENV
 
@@ -407,23 +434,39 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          top=$(gh release list -R "$GITHUB_REPOSITORY" -L 100 --exclude-drafts --json tagName -q '.[].tagName' | sed 's/^v//' | sort -V | tail -1)
-          if [ -z "$top" ] || [ "$(printf '%s\n%s\n' "$top" "$VERSION" | sort -V | tail -1)" = "$VERSION" ]; then
-            echo "make=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "v$top is newer: v$VERSION is published without the Latest mark"
-            echo "make=false" >> "$GITHUB_OUTPUT"
-          fi
+          make=$(tap/scripts/latest.sh is-newest "$GITHUB_REPOSITORY" "v$VERSION")
+          [ "$make" = true ] || echo "$(tap/scripts/latest.sh newest "$GITHUB_REPOSITORY") is newer: v$VERSION is published without the Latest mark"
+          echo "make=$make" >> "$GITHUB_OUTPUT"
 
+      # The action only makes the draft and uploads to it: its own publish
+      # sends no make_latest, and GitHub marks a release it publishes that
+      # way Latest, so make_latest false was lost and v0.1.3360, rerun after
+      # a timestamp failure, took the mark from v0.1.3362 (11-09). gh
+      # publishes it below with the mark decided above. A rerun over a
+      # published release keeps it published.
       - name: Create Release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           tag_name: v${{ env.VERSION }}
           name: magpie v${{ env.VERSION }}
-          draft: false
+          draft: true
           make_latest: ${{ steps.latest.outputs.make }}
           body_path: ${{ runner.temp }}/changelog.md
           files: dist/*
+
+      - name: Publish Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAKE: ${{ steps.latest.outputs.make }}
+        run: gh release edit "v$VERSION" -R "$GITHUB_REPOSITORY" --draft=false --latest="$MAKE"
+
+      # Two releases publishing at once can each decide before the other
+      # is out, so the mark is checked again once this one is: the highest
+      # published release has it.
+      - name: Latest stays on the newest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: tap/scripts/latest.sh mark "$GITHUB_REPOSITORY"
 
       - name: Probe Discord webhook
         id: discord
