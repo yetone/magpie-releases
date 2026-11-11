@@ -353,8 +353,20 @@ jobs:
         # limit (a job's own is six hours): a stalled apt is cut after 5
         # minutes and tried again, three times
         timeout-minutes: 20
+        # 11-11: archive.ubuntu.com and azure.archive.ubuntu.com stopped
+        # answering for hours and every v0.1.3772 to v0.1.3781 run failed
+        # here. After the first try, apt goes to another mirror; packages
+        # are still checked against Ubuntu's signing key, so a mirror only
+        # decides whether apt gets them, not what they are
         run: |
           for i in 1 2 3; do
+            if [ "$i" = 2 ]; then
+              if [ "${{ matrix.arch }}" = arm64 ]; then m=http://mirror.yandex.ru/ubuntu-ports; else m=http://mirrors.edge.kernel.org/ubuntu; fi
+              echo "using $m"
+              sudo sed -i -E "s#https?://[^ ]*(archive|ports|security)\.ubuntu\.com/ubuntu(-ports)?#$m#g" /etc/apt/sources.list
+              sudo find /etc/apt/sources.list.d -name '*.sources' -exec sed -i -E "s#https?://[^ ]*(archive|ports|security)\.ubuntu\.com/ubuntu(-ports)?#$m#g" {} +
+              grep -h '^deb ' /etc/apt/sources.list | head -3
+            fi
             sudo timeout 300 apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=30 &&
               sudo timeout 300 apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=60 -o Acquire::Retries=3 -o Acquire::http::Timeout=30 libgtk-3-dev libwebkit2gtk-4.1-dev xvfb dbus-x11 && exit 0
             echo "apt attempt $i failed; trying again"
