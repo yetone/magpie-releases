@@ -365,6 +365,10 @@ jobs:
               echo "using $m"
               sudo sed -i -E "s#https?://[^ ]*(archive|ports|security)\.ubuntu\.com/ubuntu(-ports)?#$m#g" /etc/apt/sources.list
               sudo find /etc/apt/sources.list.d -name '*.sources' -exec sed -i -E "s#https?://[^ ]*(archive|ports|security)\.ubuntu\.com/ubuntu(-ports)?#$m#g" {} +
+              # amd64 runners list their archives in a mirror+file: list
+              # (azure.archive.ubuntu.com, archive.ubuntu.com), which the
+              # seds above don't reach
+              if [ -f /etc/apt/apt-mirrors.txt ]; then echo "$m" | sudo tee /etc/apt/apt-mirrors.txt; fi
               grep -h '^deb ' /etc/apt/sources.list | head -3
             fi
             sudo timeout 300 apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=30 &&
