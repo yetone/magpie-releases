@@ -349,9 +349,18 @@ jobs:
           go-version-file: go.mod
 
       - name: Install GTK and WebKitGTK
+        # v0.1.3772 to v0.1.3774 sat in this step for over an hour with no
+        # limit (a job's own is six hours): a stalled apt is cut after 5
+        # minutes and tried again, three times
+        timeout-minutes: 20
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev xvfb dbus-x11
+          for i in 1 2 3; do
+            sudo timeout 300 apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=30 &&
+              sudo timeout 300 apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=60 -o Acquire::Retries=3 -o Acquire::http::Timeout=30 libgtk-3-dev libwebkit2gtk-4.1-dev xvfb dbus-x11 && exit 0
+            echo "apt attempt $i failed; trying again"
+            sleep 10
+          done
+          exit 1
 
       - name: Build
         run: make release-linux VERSION="$VERSION"
