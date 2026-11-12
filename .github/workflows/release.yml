@@ -413,6 +413,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # for the build provenance below: the run's OIDC token, and the right
+      # to store the attestation
+      id-token: write
+      attestations: write
 
     steps:
       - name: Checkout magpie source code
@@ -478,6 +482,20 @@ jobs:
           base64 < "$RUNNER_TEMP/sig.bin" | tr -d '\n' > dist/SHA256SUMS.sig
           echo >> dist/SHA256SUMS.sig
           ls -la dist/SHA256SUMS.sig
+
+      # SLSA build provenance, signed through Sigstore with this run's own
+      # GitHub identity and no key of ours: anyone checks a download with
+      #   gh attestation verify <file> -R yetone/magpie-releases
+      # It says this workflow run of this repo handled exactly these bytes
+      # (the dmg and zip are signed and notarised in the mac jobs, and are
+      # not changed after); the source is yetone/magpie, a different repo,
+      # so the attestation names this repo's commit, not the source's. The
+      # updater keeps its own ed25519 check, which works offline and from the
+      # R2 mirror.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*
 
       # The notes are written by scripts/notes.sh (DeepSeek's changelog,
       # then its Chinese); notes.yml writes again, each hour, those of a
