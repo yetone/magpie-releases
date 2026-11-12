@@ -443,6 +443,42 @@ jobs:
           sha256sum * > SHA256SUMS
           ls -la
 
+      # magpie only installs an update whose SHA256SUMS this signature
+      # vouches for (internal/update/signed.go in yetone/magpie): the feed
+      # at usemagpie.ai only carries them. The signed text is the line
+      # "magpie release <version>" and SHA256SUMS, so a signature for one
+      # version is no good for another. SHA256SUMS.sig is the signature in
+      # base64. The private key is the UPDATE_SIGNING_KEY secret of this
+      # repo and nowhere else; the app holds the public half.
+      - name: Sign checksums
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+          # raw public key, base64: must be the one built into magpie
+          EXPECTED_PUBLIC: 3XuYQEohIRDF+zxGQry1iXGZ1cfKYFX3vsST6GSSbYQ=
+        run: |
+          set -euo pipefail
+          if [ -z "$UPDATE_SIGNING_KEY" ]; then
+            echo "::error::UPDATE_SIGNING_KEY is not set: an unsigned release would be refused by every updater"
+            exit 1
+          fi
+          umask 077
+          key="$RUNNER_TEMP/update-key.pem"
+          printf '%s\n' "$UPDATE_SIGNING_KEY" > "$key"
+          trap 'rm -f "$key"' EXIT
+          pub=$(openssl pkey -in "$key" -pubout -outform DER | tail -c 32 | base64)
+          if [ "$pub" != "$EXPECTED_PUBLIC" ]; then
+            echo "::error::UPDATE_SIGNING_KEY is not the key magpie trusts"
+            exit 1
+          fi
+          msg="$RUNNER_TEMP/signed-msg"
+          { printf 'magpie release %s\n' "$VERSION"; cat dist/SHA256SUMS; } > "$msg"
+          openssl pkeyutl -sign -inkey "$key" -rawin -in "$msg" -out "$RUNNER_TEMP/sig.bin"
+          openssl pkey -in "$key" -pubout -out "$RUNNER_TEMP/pub.pem"
+          openssl pkeyutl -verify -pubin -inkey "$RUNNER_TEMP/pub.pem" -rawin -in "$msg" -sigfile "$RUNNER_TEMP/sig.bin"
+          base64 < "$RUNNER_TEMP/sig.bin" | tr -d '\n' > dist/SHA256SUMS.sig
+          echo >> dist/SHA256SUMS.sig
+          ls -la dist/SHA256SUMS.sig
+
       # The notes are written by scripts/notes.sh (DeepSeek's changelog,
       # then its Chinese); notes.yml writes again, each hour, those of a
       # release DeepSeek turned away (a spent balance: v0.1.2634 to 2646)
