@@ -35,3 +35,23 @@ brew install --cask magpie-app
 ```
 
 Both are updated on every release, so `brew upgrade` picks up new versions. The app also updates itself, as it does however it was installed; `magpie update` in a Homebrew install says to use `brew upgrade magpie` instead.
+
+## Scoop
+
+```powershell
+scoop bucket add magpie https://github.com/yetone/magpie-releases
+scoop install magpie/magpie-app   # the desktop app, with a Start menu shortcut
+scoop install magpie/magpie       # the terminal-only build, as `magpie`
+```
+
+The bucket is updated on every release, so `scoop update magpie-app` (or
+`scoop update *`) picks up new versions. A magpie Scoop installed leaves
+updating to Scoop: it says `scoop update <name>` in place of updating itself.
+
+## winget
+
+`winget/` holds the manifests of `yetone.Magpie` (the desktop app, run as
+`magpie-app`) and `yetone.Magpie.CLI` (the terminal build, run as `magpie`),
+rewritten on every release. They are not in winget's community repository
+yet; `.github/workflows/winget.yml` submits the newest release there once a
+day once the first version is in and the `WINGET_TOKEN` secret is set.

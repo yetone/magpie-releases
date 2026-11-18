@@ -1,0 +1,67 @@
+name: winget
+
+# Submits the newest release to winget's community repository
+# (microsoft/winget-pkgs), once a day rather than per release: magpie
+# releases many times a day, and each submission is a pull request that
+# winget's moderators review.
+#
+# Needs a WINGET_TOKEN secret, a classic token with public_repo of an
+# account that has a fork of microsoft/winget-pkgs. Without it, and until
+# the first version of each package has been accepted there (wingetcreate
+# update only updates a package that exists), the job does nothing.
+
+on:
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: winget
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    runs-on: windows-latest
+    steps:
+      - name: Token
+        id: token
+        shell: bash
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          if [ -n "$WINGET_TOKEN" ]; then echo "set=true" >> "$GITHUB_OUTPUT"; else echo "No WINGET_TOKEN secret; nothing to submit."; fi
+
+      - name: Submit the newest release
+        if: steps.token.outputs.set == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $rel = gh release view -R $env:GITHUB_REPOSITORY --json tagName,isDraft,assets | ConvertFrom-Json
+          # a release still being uploaded has fewer assets
+          if ($rel.isDraft -or $rel.assets.Count -lt 17) { Write-Output "$($rel.tagName) is not complete yet"; exit 0 }
+          $v = $rel.tagName.TrimStart('v')
+          $base = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/v$v"
+          Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+          $packages = @(
+            @{ Id = 'yetone.Magpie';     Path = 'manifests/y/yetone/Magpie';     Asset = 'magpie-windows' },
+            @{ Id = 'yetone.Magpie.CLI'; Path = 'manifests/y/yetone/Magpie/CLI'; Asset = 'magpie-cli-windows' }
+          )
+          $failed = $false
+          foreach ($p in $packages) {
+            gh api "repos/microsoft/winget-pkgs/contents/$($p.Path)/$v" --silent 2>$null
+            if ($LASTEXITCODE -eq 0) { Write-Output "$($p.Id) $v is in winget-pkgs already"; continue }
+            $open = gh pr list -R microsoft/winget-pkgs --state open --search "$($p.Id) in:title" --json title -q '.[].title'
+            if ($open -match [regex]::Escape("$($p.Id) version")) { Write-Output "$($p.Id) has an open pull request: $open"; continue }
+            .\wingetcreate.exe update $p.Id --version $v `
+              --urls "$base/$($p.Asset)-amd64.exe|x64" "$base/$($p.Asset)-arm64.exe|arm64" `
+              --release-notes-url "https://github.com/$env:GITHUB_REPOSITORY/releases/tag/v$v" `
+              --submit --token $env:WINGET_TOKEN
+            if ($LASTEXITCODE -ne 0) { Write-Output "::error::wingetcreate update $($p.Id) $v failed"; $failed = $true }
+          }
+          if ($failed) { exit 1 }

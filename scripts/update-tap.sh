@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Regenerate the Homebrew tap files — Formula/magpie.rb and Casks/magpie-app.rb —
-# from the SHA256SUMS of a published Release.
+# Regenerate the package manager files from the SHA256SUMS of a published
+# Release: the Homebrew tap (Formula/magpie.rb, Casks/magpie-app.rb), the
+# Scoop bucket (bucket/magpie.json, bucket/magpie-app.json) and the winget
+# manifests (winget/, what scripts/winget.sh submits to microsoft/winget-pkgs).
 #
 #   scripts/update-tap.sh 0.1.57
 #   TAP_OUT_DIR=/tmp/tap scripts/update-tap.sh 0.1.57
@@ -39,6 +41,105 @@ latest_version() {
   echo "${json%%\"*}"
 }
 
+# A Scoop manifest. $5 and $7 name the amd64 and arm64 assets, saved as
+# magpie.exe; $9 is the manifest's own line (bin or shortcuts).
+scoop_json() {  # version name what amd64-asset amd64-sha arm64-asset arm64-sha line
+  local version="$1" name="$2" what="$3" a64="$4" s64="$5" arm="$6" sarm="$7" line="$8"
+  cat <<JSON
+{
+    "version": "$version",
+    "description": "$DESC ($what)",
+    "homepage": "$HOMEPAGE",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "$REPO_URL/v$version/$a64#/magpie.exe",
+            "hash": "$s64"
+        },
+        "arm64": {
+            "url": "$REPO_URL/v$version/$arm#/magpie.exe",
+            "hash": "$sarm"
+        }
+    },
+    $line
+    "checkver": {
+        "github": "https://github.com/$REPO"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "$REPO_URL/v\$version/$a64#/magpie.exe"
+            },
+            "arm64": {
+                "url": "$REPO_URL/v\$version/$arm#/magpie.exe"
+            }
+        },
+        "hash": {
+            "url": "$REPO_URL/v\$version/SHA256SUMS"
+        }
+    }
+}
+JSON
+}
+
+# The three winget manifests of one package (version, installer, en-US
+# locale) in winget/<id>/: what `winget validate` and `wingetcreate submit`
+# take. winget wants the checksums in capitals.
+winget_manifests() {  # version id name command amd64-asset amd64-sha arm64-asset arm64-sha
+  local version="$1" id="$2" name="$3" cmd="$4" a64="$5" s64="$6" arm="$7" sarm="$8"
+  local dir="$OUT/winget/$id" schema="1.10.0"
+  mkdir -p "$dir"
+  rm -f "$dir"/*.yaml
+  cat > "$dir/$id.yaml" <<YAML
+# yaml-language-server: \$schema=https://aka.ms/winget-manifest.version.$schema.schema.json
+PackageIdentifier: $id
+PackageVersion: $version
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: $schema
+YAML
+  cat > "$dir/$id.installer.yaml" <<YAML
+# yaml-language-server: \$schema=https://aka.ms/winget-manifest.installer.$schema.schema.json
+PackageIdentifier: $id
+PackageVersion: $version
+InstallerType: portable
+Commands:
+- $cmd
+Installers:
+- Architecture: x64
+  InstallerUrl: $REPO_URL/v$version/$a64
+  InstallerSha256: $(tr '[:lower:]' '[:upper:]' <<<"$s64")
+- Architecture: arm64
+  InstallerUrl: $REPO_URL/v$version/$arm
+  InstallerSha256: $(tr '[:lower:]' '[:upper:]' <<<"$sarm")
+ManifestType: installer
+ManifestVersion: $schema
+YAML
+  cat > "$dir/$id.locale.en-US.yaml" <<YAML
+# yaml-language-server: \$schema=https://aka.ms/winget-manifest.defaultLocale.$schema.schema.json
+PackageIdentifier: $id
+PackageVersion: $version
+PackageLocale: en-US
+Publisher: yetone
+PublisherUrl: https://github.com/yetone
+PublisherSupportUrl: https://github.com/yetone/magpie/issues
+PackageName: $name
+PackageUrl: $HOMEPAGE
+License: MIT
+LicenseUrl: https://github.com/yetone/magpie/blob/main/LICENSE
+ShortDescription: $DESC
+Moniker: $cmd
+Tags:
+- ai
+- coding-agent
+- llm
+ReleaseNotesUrl: https://github.com/$REPO/releases/tag/v$version
+ManifestType: defaultLocale
+ManifestVersion: $schema
+YAML
+  echo "wrote $dir"
+}
+
 render() {
   local version="$1"
   local sums
@@ -48,14 +149,19 @@ render() {
   # Every checksum is resolved before anything is written.
   local cli_darwin_arm64 cli_darwin_amd64 cli_linux_arm64 cli_linux_amd64
   local app_arm64 app_amd64
+  local cli_win_amd64 cli_win_arm64 app_win_amd64 app_win_arm64
   cli_darwin_arm64="$(sha "$sums" magpie-cli-darwin-arm64)"
   cli_darwin_amd64="$(sha "$sums" magpie-cli-darwin-amd64)"
   cli_linux_arm64="$(sha "$sums" magpie-cli-linux-arm64)"
   cli_linux_amd64="$(sha "$sums" magpie-cli-linux-amd64)"
   app_arm64="$(sha "$sums" magpie-darwin-arm64.zip)"
   app_amd64="$(sha "$sums" magpie-darwin-amd64.zip)"
+  cli_win_amd64="$(sha "$sums" magpie-cli-windows-amd64.exe)"
+  cli_win_arm64="$(sha "$sums" magpie-cli-windows-arm64.exe)"
+  app_win_amd64="$(sha "$sums" magpie-windows-amd64.exe)"
+  app_win_arm64="$(sha "$sums" magpie-windows-arm64.exe)"
 
-  mkdir -p "$OUT/Formula" "$OUT/Casks"
+  mkdir -p "$OUT/Formula" "$OUT/Casks" "$OUT/bucket"
 
   cat > "$OUT/Formula/magpie.rb" <<RB
 class Magpie < Formula
@@ -114,6 +220,33 @@ cask "magpie-app" do
 end
 RB
 
+  # Scoop: the terminal build as `magpie`, and the app with a Start menu
+  # shortcut. Each release rewrites them here; checkver and autoupdate
+  # let `scoop` (and Scoop's Excavator) bring one up to date by itself
+  # too, from the same SHA256SUMS. The app updates itself no more under
+  # Scoop: magpie leaves an app in Scoop's apps folder to `scoop update`
+  # (internal/update/packaged.go in yetone/magpie).
+  scoop_json "$version" magpie "the terminal build" \
+    magpie-cli-windows-amd64.exe "$cli_win_amd64" magpie-cli-windows-arm64.exe "$cli_win_arm64" \
+    '"bin": "magpie.exe",' > "$OUT/bucket/magpie.json"
+  scoop_json "$version" magpie-app "the desktop app" \
+    magpie-windows-amd64.exe "$app_win_amd64" magpie-windows-arm64.exe "$app_win_arm64" \
+    '"shortcuts": [["magpie.exe", "magpie"]],' > "$OUT/bucket/magpie-app.json"
+  for file in "$OUT/bucket/magpie.json" "$OUT/bucket/magpie-app.json"; do
+    if command -v jq > /dev/null; then
+      jq -e . "$file" > /dev/null || die "$file is not valid JSON"
+    fi
+    echo "wrote $file"
+  done
+
+  # winget: portable packages, the app as yetone.Magpie (run as magpie-app,
+  # so it doesn't take `magpie` from the terminal build) and the terminal
+  # build as yetone.Magpie.CLI (run as magpie).
+  winget_manifests "$version" yetone.Magpie "magpie" magpie-app \
+    magpie-windows-amd64.exe "$app_win_amd64" magpie-windows-arm64.exe "$app_win_arm64"
+  winget_manifests "$version" yetone.Magpie.CLI "magpie CLI" magpie \
+    magpie-cli-windows-amd64.exe "$cli_win_amd64" magpie-cli-windows-arm64.exe "$cli_win_arm64"
+
   for file in "$OUT/Formula/magpie.rb" "$OUT/Casks/magpie-app.rb"; do
     if command -v ruby > /dev/null; then
       ruby -c "$file" > /dev/null || die "$file is not valid Ruby"
@@ -152,6 +285,16 @@ self_check() {
   assert_next "$formula" 'magpie-cli-linux-amd64"'  "$(sha "$sums" magpie-cli-linux-amd64)"
   assert_same "$cask" 'arm:'   "$(sha "$sums" magpie-darwin-arm64.zip)"
   assert_same "$cask" 'intel:' "$(sha "$sums" magpie-darwin-amd64.zip)"
+
+  local bucket="$dir/bucket"
+  grep -q "\"version\": \"$version\"" "$bucket/magpie.json" || die "scoop magpie is not at v$version"
+  assert_next "$bucket/magpie.json" 'magpie-cli-windows-amd64.exe#' "$(sha "$sums" magpie-cli-windows-amd64.exe)"
+  assert_next "$bucket/magpie.json" 'magpie-cli-windows-arm64.exe#' "$(sha "$sums" magpie-cli-windows-arm64.exe)"
+  assert_next "$bucket/magpie-app.json" "v$version/magpie-windows-amd64.exe#" "$(sha "$sums" magpie-windows-amd64.exe)"
+  assert_next "$bucket/magpie-app.json" "v$version/magpie-windows-arm64.exe#" "$(sha "$sums" magpie-windows-arm64.exe)"
+  local inst="$dir/winget/yetone.Magpie/yetone.Magpie.installer.yaml"
+  assert_next "$inst" 'magpie-windows-amd64.exe' "$(sha "$sums" magpie-windows-amd64.exe | tr '[:lower:]' '[:upper:]')"
+  assert_next "$inst" 'magpie-windows-arm64.exe' "$(sha "$sums" magpie-windows-arm64.exe | tr '[:lower:]' '[:upper:]')"
 
   # An asset missing from SHA256SUMS must fail the render, in a subshell so the
   # exit only ends the probe.

@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
+PackageIdentifier: yetone.Magpie
+PackageVersion: 0.1.4482
+PackageLocale: en-US
+Publisher: yetone
+PublisherUrl: https://github.com/yetone
+PublisherSupportUrl: https://github.com/yetone/magpie/issues
+PackageName: magpie
+PackageUrl: https://usemagpie.ai/
+License: MIT
+LicenseUrl: https://github.com/yetone/magpie/blob/main/LICENSE
+ShortDescription: Pick the model each AI coding agent on your machine uses
+Moniker: magpie-app
+Tags:
+- ai
+- coding-agent
+- llm
+ReleaseNotesUrl: https://github.com/yetone/magpie-releases/releases/tag/v0.1.4482
+ManifestType: defaultLocale
+ManifestVersion: 1.10.0
