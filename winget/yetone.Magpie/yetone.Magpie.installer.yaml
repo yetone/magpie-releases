@@ -1,15 +1,15 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
 PackageIdentifier: yetone.Magpie
-PackageVersion: 0.1.4623
+PackageVersion: 0.1.4624
 InstallerType: portable
 Commands:
 - magpie-app
 Installers:
 - Architecture: x64
-  InstallerUrl: https://github.com/yetone/magpie-releases/releases/download/v0.1.4623/magpie-windows-amd64.exe
-  InstallerSha256: A739E9855E74D73425F8632561852B41A981B893417AA3C9D39E2249A05580A0
+  InstallerUrl: https://github.com/yetone/magpie-releases/releases/download/v0.1.4624/magpie-windows-amd64.exe
+  InstallerSha256: 1B3B64FE22544EB1EDF5AA2960B8654EB283ABCFBCD1B687D185BA424668874A
 - Architecture: arm64
-  InstallerUrl: https://github.com/yetone/magpie-releases/releases/download/v0.1.4623/magpie-windows-arm64.exe
-  InstallerSha256: B5CE8ADB83B71DE4A45502E5C6C073D4035B3A17625E022544B912951D6C36E0
+  InstallerUrl: https://github.com/yetone/magpie-releases/releases/download/v0.1.4624/magpie-windows-arm64.exe
+  InstallerSha256: F1D8A719018F2C9D0884A80F1ECC9296866A5224F0ADCDE2F1949E884D12B6D2
 ManifestType: installer
 ManifestVersion: 1.10.0
