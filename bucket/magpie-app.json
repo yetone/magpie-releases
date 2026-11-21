@@ -1,16 +1,16 @@
 {
-    "version": "0.1.4634",
+    "version": "0.1.4635",
     "description": "Pick the model each AI coding agent on your machine uses (the desktop app)",
     "homepage": "https://usemagpie.ai/",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/yetone/magpie-releases/releases/download/v0.1.4634/magpie-windows-amd64.exe#/magpie.exe",
-            "hash": "0bf82ca57b7fe50d7823ae1a7e866401a3451d68b998d6b870e916c7cbd109fb"
+            "url": "https://github.com/yetone/magpie-releases/releases/download/v0.1.4635/magpie-windows-amd64.exe#/magpie.exe",
+            "hash": "cb5bb8da1c9d47890488b23b1b5dabf8790bb9165058e1512bf50432b458b8d4"
         },
         "arm64": {
-            "url": "https://github.com/yetone/magpie-releases/releases/download/v0.1.4634/magpie-windows-arm64.exe#/magpie.exe",
-            "hash": "7c9d89cc6e1bae4cedfa21633d857bb9da8ccc272dc77e588e5c1ee1941bc072"
+            "url": "https://github.com/yetone/magpie-releases/releases/download/v0.1.4635/magpie-windows-arm64.exe#/magpie.exe",
+            "hash": "514a3593e91d090bf267adb85c25ba98dcb1f75a7f92a14ebbe386d08ae9ff75"
         }
     },
     "shortcuts": [["magpie.exe", "magpie"]],
