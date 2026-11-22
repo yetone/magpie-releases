@@ -2,7 +2,8 @@
 # Regenerate the package manager files from the SHA256SUMS of a published
 # Release: the Homebrew tap (Formula/magpie.rb, Casks/magpie-app.rb), the
 # Scoop bucket (bucket/magpie.json, bucket/magpie-app.json) and the winget
-# manifests (winget/, what scripts/winget.sh submits to microsoft/winget-pkgs).
+# manifests (winget/, what scripts/winget.sh submits to microsoft/winget-pkgs),
+# and the Nix flake's nix/sources.json.
 #
 #   scripts/update-tap.sh 0.1.57
 #   TAP_OUT_DIR=/tmp/tap scripts/update-tap.sh 0.1.57
@@ -21,6 +22,13 @@ DESC="Pick the model each AI coding agent on your machine uses"
 die() { echo "update-tap: $*" >&2; exit 1; }
 
 REPO_URL="https://github.com/$REPO/releases/download"
+
+# The assets the Nix flake wraps: the desktop build and the terminal build
+# of each system it has.
+NIX_ASSETS=(
+  magpie-linux-amd64 magpie-linux-arm64 magpie-darwin-amd64.zip magpie-darwin-arm64.zip
+  magpie-cli-linux-amd64 magpie-cli-linux-arm64 magpie-cli-darwin-amd64 magpie-cli-darwin-arm64
+)
 
 release_url() { echo "$REPO_URL/v$1"; }
 
@@ -160,8 +168,13 @@ render() {
   cli_win_arm64="$(sha "$sums" magpie-cli-windows-arm64.exe)"
   app_win_amd64="$(sha "$sums" magpie-windows-amd64.exe)"
   app_win_arm64="$(sha "$sums" magpie-windows-arm64.exe)"
+  local nix_assets="" a
+  for a in "${NIX_ASSETS[@]}"; do
+    nix_assets+="${nix_assets:+,}
+    \"$a\": \"$(sha "$sums" "$a")\""
+  done
 
-  mkdir -p "$OUT/Formula" "$OUT/Casks" "$OUT/bucket"
+  mkdir -p "$OUT/Formula" "$OUT/Casks" "$OUT/bucket" "$OUT/nix"
 
   cat > "$OUT/Formula/magpie.rb" <<RB
 class Magpie < Formula
@@ -247,6 +260,19 @@ RB
   winget_manifests "$version" yetone.Magpie.CLI "magpie CLI" magpie \
     magpie-cli-windows-amd64.exe "$cli_win_amd64" magpie-cli-windows-arm64.exe "$cli_win_arm64"
 
+  # Nix: flake.nix wraps these assets (nix/package.nix).
+  cat > "$OUT/nix/sources.json" <<JSON
+{
+  "version": "$version",
+  "assets": {$nix_assets
+  }
+}
+JSON
+  if command -v jq > /dev/null; then
+    jq -e . "$OUT/nix/sources.json" > /dev/null || die "nix/sources.json is not valid JSON"
+  fi
+  echo "wrote $OUT/nix/sources.json"
+
   for file in "$OUT/Formula/magpie.rb" "$OUT/Casks/magpie-app.rb"; do
     if command -v ruby > /dev/null; then
       ruby -c "$file" > /dev/null || die "$file is not valid Ruby"
@@ -295,6 +321,12 @@ self_check() {
   local inst="$dir/winget/yetone.Magpie/yetone.Magpie.installer.yaml"
   assert_next "$inst" 'magpie-windows-amd64.exe' "$(sha "$sums" magpie-windows-amd64.exe | tr '[:lower:]' '[:upper:]')"
   assert_next "$inst" 'magpie-windows-arm64.exe' "$(sha "$sums" magpie-windows-arm64.exe | tr '[:lower:]' '[:upper:]')"
+
+  local src="$dir/nix/sources.json"
+  grep -q "\"version\": \"$version\"" "$src" || die "nix/sources.json is not at v$version"
+  for a in "${NIX_ASSETS[@]}"; do
+    assert_same "$src" "\"$a\":" "$(sha "$sums" "$a")"
+  done
 
   # An asset missing from SHA256SUMS must fail the render, in a subshell so the
   # exit only ends the probe.

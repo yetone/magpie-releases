@@ -1,0 +1,57 @@
+name: Nix
+
+# The flake wraps the latest Release's assets through nix/sources.json, which
+# the release workflow's tap step writes on each tag. This fails when that
+# file is behind the latest Release or its hashes aren't the Release's, and
+# when the flake doesn't build or the built magpie isn't that version.
+on:
+  push:
+    branches: [main]
+    paths: [flake.nix, flake.lock, nix/**, scripts/check-nix.sh, scripts/update-tap.sh, .github/workflows/nix.yml]
+  pull_request:
+    paths: [flake.nix, flake.lock, nix/**, scripts/check-nix.sh, scripts/update-tap.sh, .github/workflows/nix.yml]
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  current:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - name: sources.json is at the latest Release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./scripts/check-nix.sh
+
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+      - name: Build and run both packages
+        run: |
+          set -euo pipefail
+          want="$(jq -r .version nix/sources.json)"
+          for pkg in magpie magpie-cli; do
+            nix build ".#$pkg" -o "result-$pkg" -L
+            got="$("./result-$pkg/bin/magpie" --version)"
+            echo "$pkg: $got"
+            [ "$got" = "magpie $want" ] || { echo "::error::$pkg says '$got', want 'magpie $want'"; exit 1; }
+          done
+          nix flake check
+      - name: The Linux desktop entry starts the wrapper
+        if: runner.os == 'Linux'
+        run: |
+          grep -qx "Exec=$(readlink -f result-magpie)/bin/magpie %u" result-magpie/share/applications/magpie.desktop
+          grep -q "MAGPIE_EXECUTABLE" result-magpie/bin/magpie
+      - name: The Mac app keeps Apple's signature
+        if: runner.os == 'macOS'
+        run: codesign --verify --deep --strict --verbose=2 result-magpie/Applications/magpie.app

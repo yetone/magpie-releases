@@ -48,6 +48,22 @@ The bucket is updated on every release, so `scoop update magpie-app` (or
 `scoop update *`) picks up new versions. A magpie Scoop installed leaves
 updating to Scoop: it says `scoop update <name>` in place of updating itself.
 
+## Nix
+
+A flake for Linux (x86_64 and aarch64) and Apple silicon Macs, wrapping each release's
+signed files:
+
+```sh
+nix run github:yetone/magpie-releases                    # try the desktop app
+nix profile install github:yetone/magpie-releases        # the desktop app
+nix profile install github:yetone/magpie-releases#magpie-cli   # the terminal-only build
+```
+
+`overlays.default` adds `magpie` and `magpie-cli` to nixpkgs for a NixOS,
+nix-darwin or Home Manager configuration. `nix/sources.json` is updated on
+every release, so `nix profile upgrade --all` picks up new versions; a magpie
+from the Nix store leaves updating to Nix.
+
 ## winget
 
 `winget/` holds the manifests of `yetone.Magpie` (the desktop app, run as
