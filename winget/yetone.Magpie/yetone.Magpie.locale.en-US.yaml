@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
 PackageIdentifier: yetone.Magpie
-PackageVersion: 0.1.4776
+PackageVersion: 0.1.4777
 PackageLocale: en-US
 Publisher: yetone
 PublisherUrl: https://github.com/yetone
@@ -15,6 +15,6 @@ Tags:
 - ai
 - coding-agent
 - llm
-ReleaseNotesUrl: https://github.com/yetone/magpie-releases/releases/tag/v0.1.4776
+ReleaseNotesUrl: https://github.com/yetone/magpie-releases/releases/tag/v0.1.4777
 ManifestType: defaultLocale
 ManifestVersion: 1.10.0
