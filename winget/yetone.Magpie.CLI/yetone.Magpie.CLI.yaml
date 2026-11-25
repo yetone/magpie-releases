@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.10.0.schema.json
 PackageIdentifier: yetone.Magpie.CLI
-PackageVersion: 0.1.4811
+PackageVersion: 0.1.4812
 DefaultLocale: en-US
 ManifestType: version
 ManifestVersion: 1.10.0
