@@ -1,13 +1,13 @@
 {
-  "version": "0.1.4842",
+  "version": "0.1.4843",
   "assets": {
-    "magpie-linux-amd64": "d1e1de041d7029e29817bacd1c929eae2c7010fd655b35028b1c00fd1a852efa",
-    "magpie-linux-arm64": "5858d8825f70582178f79e2c51636ac7a6bdb3b0ea4b69acdba95a62be3cbae3",
-    "magpie-darwin-amd64.zip": "62e70040a277afff95c9c66d1f1fe797e20e78e1014d24b873bbfb71a1ca3efc",
-    "magpie-darwin-arm64.zip": "6cba7f4b3f8295d8fbebe3f365d43a5e5e4d653fec6b3c029262e13dcabc195d",
-    "magpie-cli-linux-amd64": "b1155d8167bea666737f18d53e4205fc4db70ee77837f5dbc32d569b7bcf2d1d",
-    "magpie-cli-linux-arm64": "dda2050a4f280b693764805f5cab678a9bba363bf384cb78832a614cb2da97de",
-    "magpie-cli-darwin-amd64": "4f18b52b31a90564a1618495f6c96bab4bfd64cdaf9fdd9f415a532266a98744",
-    "magpie-cli-darwin-arm64": "709190a2d7bbd3a55e06f2d4751a3fa0537a15c7c275d8d5a442df43473d1456"
+    "magpie-linux-amd64": "c2de2cc0c7386a5fa3adcf1515a112ca968d63854c603f05dcf2d5fae64c71ec",
+    "magpie-linux-arm64": "bb43dc9a15210ecb55dd9c2f370811c7a860a00d2bff4aeac98d3544e5cb5d7a",
+    "magpie-darwin-amd64.zip": "ed58c1793dfbad62ecbfe6d45cd8d85a13777eaf407cea7e09a00753161f8610",
+    "magpie-darwin-arm64.zip": "b2e1cf2dad38630bd8e602de1526cfe77435c2e5f03ac3b4697259d58d6b522b",
+    "magpie-cli-linux-amd64": "6bb59f16a2a94cd551ce30096a7ff7f96936ef0c2425dac4f2835b82feec7038",
+    "magpie-cli-linux-arm64": "8c4606d00e2e47452385e8105a3898f13dc11f021beca65b72302ebd5a235125",
+    "magpie-cli-darwin-amd64": "35d5fc0fdddcbb122bb60e8ddf5f34ca5e1fc0d95e6c329f67e36549b6b7eefe",
+    "magpie-cli-darwin-arm64": "f466b14723c9c754e148ac3626b4e31b66925a0cc2fd777035c2974a864cab4a"
   }
 }
